@@ -77,6 +77,13 @@ td.loc{font-weight:600;max-width:250px;}td.kraj{color:var(--muted);font-size:12p
 .sc{font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 5px;border-radius:4px;margin-right:3px;border:1px solid var(--line);}
 .sc-bazos{color:#1f6db2;}.sc-annonce{color:#1f8a5b;}
 .lnk a{color:var(--accent);text-decoration:none;font-weight:700;}.nl{font-size:10px;color:var(--muted);cursor:help;}
+td.act{text-align:center;}
+.hidebtn{width:24px;height:24px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:13px;line-height:1;cursor:pointer;padding:0;}
+.hidebtn:hover{border-color:var(--drop);color:var(--drop);}
+#app.showhidden .hidebtn:hover{border-color:var(--accent);color:var(--accent);}
+.hidebanner{display:none;background:var(--chip-bg);border:1px solid var(--line);border-radius:9px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:var(--accent2);font-weight:600;}
+#app.showhidden .hidebanner{display:block;}
+#toggleHidden.on{background:var(--accent);color:#fff;border-color:var(--accent);}
 .pager{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px 0;font-size:12.5px;color:var(--muted);}
 .pager button{min-width:34px;}.pager .pi{font-variant-numeric:tabular-nums;}
 .empty{padding:40px;text-align:center;color:var(--muted);}
@@ -111,14 +118,17 @@ td.loc{font-weight:600;max-width:250px;}td.kraj{color:var(--muted);font-size:12p
 </section>
 <div class="toolbar">
   <span class="summary" id="summary"></span><span class="spacer"></span>
+  <button id="toggleHidden" class="btn" title="Zobrazit/spravovat skryté nemovitosti">&#128065; Skryté: 0</button>
+  <button id="clearHidden" class="btn" title="Vrátit všechny skryté na board" style="display:none">Obnovit vše</button>
   <button id="copyLink" class="btn" title="Zkopíruj odkaz na tento filtr">&#128279; Sdílet pohled</button>
   <button id="exportCsv" class="btn primary">&#8595; Export CSV (filtrované)</button>
 </div>
+<div class="hidebanner" id="hidebanner">Zobrazuji <b>skryté</b> nemovitosti — klikni <b>&#8617;</b> u řádku pro vrácení na board.</div>
 <div class="tablewrap"><table><thead><tr>
   <th data-k="loc" class="s">Lokalita</th><th data-k="kraj" class="s">Kraj</th>
   <th data-k="cat" class="s">Typ</th><th data-k="price" class="s num">Cena (Kč)</th>
   <th data-k="pm2" class="s num">Kč/m²</th><th data-k="area" class="s num">Plocha m²</th>
-  <th data-k="age_days" class="s num sortdesc">Sledováno</th><th>Zdroj</th><th>Odkaz</th>
+  <th data-k="age_days" class="s num sortdesc">Sledováno</th><th>Zdroj</th><th>Odkaz</th><th></th>
 </tr></thead><tbody id="tb"></tbody></table></div>
 <div class="pager" id="pager"></div>
 <footer class="foot"><strong>Jak to funguje:</strong> hlídač denně stahuje inzeráty soukromníků (makléře/RK vynechává)
@@ -133,6 +143,16 @@ const fmt=n=>n==null?"—":n.toLocaleString("cs-CZ").replace(/,/g," ");
 const PER=100;
 const S={q:"",kraj:new Set(),cat:new Set(),src:new Set(),pMin:null,pMax:null,aMin:null,
   drop:false,rk:false,area:false,sort:"age_days",dir:-1,page:1};
+var HIDDEN=new Set();try{HIDDEN=new Set(JSON.parse(localStorage.getItem("hlidac_hidden")||"[]"));}catch(e){}
+var showHidden=false;
+function saveHidden(){try{localStorage.setItem("hlidac_hidden",JSON.stringify(Array.from(HIDDEN)));}catch(e){}updateHiddenUI();}
+function updateHiddenUI(){
+  document.getElementById("toggleHidden").innerHTML="&#128065; Skryté: "+HIDDEN.size;
+  document.getElementById("clearHidden").style.display=HIDDEN.size?"inline-block":"none";
+  document.getElementById("toggleHidden").classList.toggle("on",showHidden);
+  document.getElementById("app").classList.toggle("showhidden",showHidden);}
+function hideItem(u){HIDDEN.add(u);saveHidden();apply();}
+function unhideItem(u){HIDDEN.delete(u);if(HIDDEN.size===0&&showHidden){showHidden=false;}saveHidden();apply();}
 
 document.getElementById("kpis").innerHTML=[
   ["total",STATS.total,"soukromníků<br>(hlídáno)",null],
@@ -183,6 +203,8 @@ document.querySelectorAll("th.s").forEach(function(th){th.addEventListener("clic
 
 function filtered(){
   return DATA.filter(function(x){
+    var isHidden=HIDDEN.has(x.url);
+    if(showHidden){if(!isHidden)return false;}else{if(isHidden)return false;}
     if(S.drop&&!x.drop)return false;
     if(S.rk&&x.anti_rk)return false;
     if(S.area&&!x.area)return false;
@@ -217,8 +239,11 @@ function apply(){
     '<td class="num"><span class="chip">'+(x.age_days||0)+' d</span></td>'+
     '<td class="srcs">'+x.srcs.map(function(s){return '<span class="sc sc-'+s+'">'+s+'</span>';}).join("")+'</td>'+
     '<td class="lnk"><a href="'+x.url+'" target="_blank" rel="noopener">↗</a>'+(x.ns>1?' <span class="nl" title="'+x.urls.join(" | ")+'">+'+(x.ns-1)+'</span>':'')+'</td>'+
-    '</tr>';}).join(""):'<tr><td colspan="9" class="empty">Nic neodpovídá filtru. <a href="#" id="clr">Zrušit filtry</a></td></tr>';
+    '<td class="act"><button class="hidebtn" data-u="'+encodeURIComponent(x.url)+'" title="'+(showHidden?'Vrátit na board':'Skrýt z boardu')+'">'+(showHidden?'↩':'✕')+'</button></td>'+
+    '</tr>';}).join(""):'<tr><td colspan="10" class="empty">'+(showHidden?'Žádné skryté nemovitosti.':'Nic neodpovídá filtru. <a href="#" id="clr">Zrušit filtry</a>')+'</td></tr>';
   var clr=document.getElementById("clr");if(clr)clr.addEventListener("click",function(e){e.preventDefault();document.getElementById("reset").click();});
+  document.querySelectorAll(".hidebtn").forEach(function(b){b.addEventListener("click",function(){
+    var u=decodeURIComponent(b.dataset.u);showHidden?unhideItem(u):hideItem(u);});});
   renderPager(pages,r.length);
   writeHash();
 }
@@ -273,9 +298,15 @@ document.getElementById("copyLink").addEventListener("click",function(){
   navigator.clipboard.writeText(location.href).then(function(){
     var b=document.getElementById("copyLink");var t=b.innerHTML;b.textContent="✓ zkopírováno";setTimeout(function(){b.innerHTML=t;},1400);});});
 
+document.getElementById("toggleHidden").addEventListener("click",function(){
+  if(!showHidden&&HIDDEN.size===0)return; showHidden=!showHidden;S.page=1;updateHiddenUI();apply();});
+document.getElementById("clearHidden").addEventListener("click",function(){
+  if(!HIDDEN.size)return;
+  if(confirm("Vrátit všech "+HIDDEN.size+" skrytých nemovitostí zpět na board?")){HIDDEN.clear();showHidden=false;saveHidden();apply();}});
+
 document.getElementById("densBtn").addEventListener("click",function(){document.getElementById("app").classList.toggle("compact");});
 var root=document.documentElement;
 document.getElementById("themeBtn").addEventListener("click",function(){var c=root.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");root.setAttribute("data-theme",c==="dark"?"light":"dark");});
 
-readHash();apply();
+updateHiddenUI();readHash();apply();
 </script>
