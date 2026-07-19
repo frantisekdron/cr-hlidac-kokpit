@@ -73,6 +73,11 @@ td.loc{font-weight:600;max-width:250px;}td.kraj{color:var(--muted);font-size:12p
 :root[data-theme="dark"] .t-pozemek,:root[data-theme="dark"] .t-komercni{filter:brightness(1.4)}
 .chip{background:var(--chip-bg);color:var(--accent2);font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;}
 .drop{color:var(--drop);font-weight:800;}.muted{color:var(--muted);}
+.oldprice{text-decoration:line-through;color:var(--muted);font-variant-numeric:tabular-nums;font-family:ui-monospace,Menlo,monospace;}
+.pct{font-size:10.5px;font-weight:800;padding:1px 5px;border-radius:4px;margin-left:4px;white-space:nowrap;}
+.pct.down{color:#fff;background:var(--drop);}
+.pct.up{color:var(--muted);border:1px solid var(--line);}
+tr.haddrop td.loc{box-shadow:inset 3px 0 0 var(--drop);}
 .flag{font-size:9px;font-weight:700;color:var(--drop);border:1px solid var(--drop);border-radius:4px;padding:1px 4px;margin-left:4px;}
 .sc{font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 5px;border-radius:4px;margin-right:3px;border:1px solid var(--line);}
 .sc-bazos{color:#1f6db2;}.sc-annonce{color:#1f8a5b;}
@@ -127,6 +132,7 @@ td.act{text-align:center;}
 <div class="tablewrap"><table><thead><tr>
   <th data-k="loc" class="s">Lokalita</th><th data-k="kraj" class="s">Kraj</th>
   <th data-k="cat" class="s">Typ</th><th data-k="price" class="s num">Cena (Kč)</th>
+  <th data-k="p0" class="s num">Původní cena</th>
   <th data-k="pm2" class="s num">Kč/m²</th><th data-k="area" class="s num">Plocha m²</th>
   <th data-k="age_days" class="s num sortdesc">Sledováno</th><th>Zdroj</th><th>Odkaz</th><th></th>
 </tr></thead><tbody id="tb"></tbody></table></div>
@@ -229,18 +235,24 @@ function apply(){
   var fp=r.filter(function(x){return x.price;});
   var favg=fp.length?Math.round(fp.reduce(function(s,x){return s+x.price;},0)/fp.length):0;
   document.getElementById("summary").innerHTML='<b>'+fmt(r.length)+'</b> z '+fmt(DATA.length)+' · zlevněných <b>'+fmt(r.filter(function(x){return x.drop;}).length)+'</b> · prům. cena <b>'+(favg?fmt(favg)+" Kč":"—")+'</b>';
-  document.getElementById("tb").innerHTML=slice.length?slice.map(function(x){return '<tr>'+
+  document.getElementById("tb").innerHTML=slice.length?slice.map(function(x){
+    var zmena=(x.p0!=null&&x.price!=null&&x.p0!==x.price);
+    var pct=zmena?Math.round((x.price-x.p0)/x.p0*100):0;
+    return '<tr'+(x.drop?' class="haddrop"':'')+'>'+
     '<td class="loc">'+x.loc+(x.anti_rk?'<span class="flag" title="majitel píše RK nevolat">RK nevolat</span>':'')+'</td>'+
     '<td class="kraj">'+x.kraj+'</td>'+
     '<td><span class="typ t-'+x.cat+'">'+(TYP[x.cat]||x.cat)+'</span></td>'+
-    '<td class="num">'+(x.price==null?'<span class=muted>na dotaz</span>':'<span class=mono>'+fmt(x.price)+'</span>')+(x.drop?' <span class=drop title="zlevněno z '+fmt(x.p0)+'">▼</span>':'')+'</td>'+
+    '<td class="num">'+(x.price==null?'<span class=muted>na dotaz</span>':'<span class=mono>'+fmt(x.price)+'</span>')+'</td>'+
+    '<td class="num">'+(zmena
+        ? '<span class="oldprice">'+fmt(x.p0)+'</span><span class="pct '+(pct<0?'down':'up')+'" title="'+(pct<0?'zlevněno':'zdraženo')+' o '+fmt(Math.abs(x.price-x.p0))+' Kč">'+(pct<0?'▼ ':'▲ ')+Math.abs(pct)+' %</span>'
+        : '<span class=muted>—</span>')+'</td>'+
     '<td class="num mono">'+(x.pm2?fmt(x.pm2):'—')+'</td>'+
     '<td class="num mono">'+(x.area?fmt(x.area):'—')+'</td>'+
     '<td class="num"><span class="chip">'+(x.age_days||0)+' d</span></td>'+
     '<td class="srcs">'+x.srcs.map(function(s){return '<span class="sc sc-'+s+'">'+s+'</span>';}).join("")+'</td>'+
     '<td class="lnk"><a href="'+x.url+'" target="_blank" rel="noopener">↗</a>'+(x.ns>1?' <span class="nl" title="'+x.urls.join(" | ")+'">+'+(x.ns-1)+'</span>':'')+'</td>'+
     '<td class="act"><button class="hidebtn" data-u="'+encodeURIComponent(x.url)+'" title="'+(showHidden?'Vrátit na board':'Skrýt z boardu')+'">'+(showHidden?'↩':'✕')+'</button></td>'+
-    '</tr>';}).join(""):'<tr><td colspan="10" class="empty">'+(showHidden?'Žádné skryté nemovitosti.':'Nic neodpovídá filtru. <a href="#" id="clr">Zrušit filtry</a>')+'</td></tr>';
+    '</tr>';}).join(""):'<tr><td colspan="11" class="empty">'+(showHidden?'Žádné skryté nemovitosti.':'Nic neodpovídá filtru. <a href="#" id="clr">Zrušit filtry</a>')+'</td></tr>';
   var clr=document.getElementById("clr");if(clr)clr.addEventListener("click",function(e){e.preventDefault();document.getElementById("reset").click();});
   document.querySelectorAll(".hidebtn").forEach(function(b){b.addEventListener("click",function(){
     var u=decodeURIComponent(b.dataset.u);showHidden?unhideItem(u):hideItem(u);});});
@@ -262,9 +274,12 @@ function renderPager(pages,total){
 
 document.getElementById("exportCsv").addEventListener("click",function(){
   var r=sortRows(filtered());
-  var head=["kraj","typ","lokalita","cena_Kc","kc_m2","plocha_m2","sledovano_dni","zlevneno","rk_nevolat","zdroje","odkaz"];
+  var head=["kraj","typ","lokalita","cena_Kc","puvodni_cena_Kc","zmena_pct","kc_m2","plocha_m2","sledovano_dni","zlevneno","rk_nevolat","zdroje","odkaz"];
   var esc=function(v){v=(v==null?"":String(v));return /[",;\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
-  var rows=r.map(function(x){return [x.kraj,TYP[x.cat]||x.cat,x.loc,x.price||"",x.pm2||"",x.area||"",x.age_days||0,
+  var rows=r.map(function(x){
+    var zmena=(x.p0!=null&&x.price!=null&&x.p0!==x.price);
+    return [x.kraj,TYP[x.cat]||x.cat,x.loc,x.price||"",zmena?x.p0:"",zmena?Math.round((x.price-x.p0)/x.p0*100):"",
+    x.pm2||"",x.area||"",x.age_days||0,
     x.drop?"ano":"",x.anti_rk?"ano":"",x.srcs.join("+"),x.url].map(esc).join(";");});
   var csv="﻿"+head.join(";")+"\n"+rows.join("\n");
   var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
