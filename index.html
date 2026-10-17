@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Hlídač – analytik trhu</title>
+<link rel="stylesheet" href="app.css">
+<script>
+/* motiv před prvním vykreslením (bez bliknutí); localStorage smí selhat */
+try{var t=localStorage.getItem("hlidac_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}
+</script>
+</head>
+<body>
+<a class="skip" href="#list">Přeskočit na seznam</a>
+
+<header class="top" id="top">
+  <div class="brand"><b>HLÍDAČ</b><span class="brand-sub">analytik trhu · soukromé inzeráty ČR</span></div>
+  <nav class="tabs" role="tablist" aria-label="Sekce">
+    <button type="button" role="tab" id="tab-leady" data-tab="leady" aria-selected="true">Leady <span class="tcnt" id="tcnt-leady"></span></button>
+    <button type="button" role="tab" id="tab-trh" data-tab="trh" aria-selected="false">Trh</button>
+    <button type="button" role="tab" id="tab-fav" data-tab="fav" aria-selected="false">Oblíbené <span class="tcnt" id="tcnt-fav"></span></button>
+  </nav>
+  <div class="tools">
+    <button type="button" class="ibtn" id="btn-views" aria-haspopup="true" aria-expanded="false" title="Uložené pohledy">Pohledy</button>
+    <button type="button" class="ibtn" id="btn-keys" aria-haspopup="true" aria-expanded="false" title="Klávesové zkratky (?)" aria-label="Klávesové zkratky">?</button>
+    <button type="button" class="ibtn" id="btn-dens" title="Hustota řádků" aria-label="Hustota řádků">&#8801;</button>
+    <button type="button" class="ibtn" id="btn-theme" title="Světlý / tmavý motiv" aria-label="Přepnout motiv">&#9680;</button>
+  </div>
+</header>
+
+<div id="boot" class="boot" role="status">Načítám data…</div>
+
+<div id="pane-list" class="shell" hidden>
+  <aside id="side" class="side" aria-label="Filtry">
+    <div class="side-head">
+      <b>Filtry</b>
+      <button type="button" class="lnk" id="btn-reset">Zrušit vše</button>
+      <button type="button" class="ibtn only-mobile" id="side-close" aria-label="Zavřít filtry">&#10005;</button>
+    </div>
+    <div id="facets"></div>
+    <div class="side-foot only-mobile"><button type="button" class="btn primary wide" id="side-apply">Zobrazit výsledky</button></div>
+  </aside>
+  <div class="side-back" id="side-back"></div>
+  <section class="main" aria-label="Seznam inzerátů">
+    <div id="presets" class="presets" role="group" aria-label="Přednastavené pohledy"></div>
+    <div id="achips" class="achips" aria-live="polite"></div>
+    <div id="sumline" class="sumline" aria-live="polite"></div>
+    <div class="toolbar">
+      <button type="button" class="btn only-mobile" id="btn-filters">Filtry <span id="fbadge" class="fbadge"></span></button>
+      <label class="sortsel">Řadit
+        <select id="sortsel" aria-label="Řadit podle"></select>
+      </label>
+      <button type="button" class="btn" id="btn-dir" title="Obrátit řazení" aria-label="Obrátit řazení">&#8645;</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="btn-hid" aria-pressed="false">Skryté: 0</button>
+      <button type="button" class="btn" id="btn-img" aria-pressed="true" title="Zapnout / vypnout náhledy fotek">Fotky</button>
+      <button type="button" class="btn primary" id="btn-csv" title="Export výběru do CSV (jen příznaky, bez kontaktních hodnot)">Export CSV</button>
+    </div>
+    <div id="list" class="list" tabindex="-1"></div>
+    <div id="pager" class="pager"></div>
+  </section>
+</div>
+
+<section id="pane-trh" class="trhpane" hidden></section>
+
+<footer id="foot" class="foot"></footer>
+
+<div id="dwrap" class="dwrap" hidden>
+  <div class="dback" id="dback"></div>
+  <aside id="dp" class="dp" role="dialog" aria-modal="true" aria-label="Detail inzerátu" tabindex="-1"></aside>
+</div>
+
+<div id="pop" class="pop" hidden></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<noscript><p class="boot">Hlídač potřebuje JavaScript.</p></noscript>
+<script src="app.js"></script>
+</body>
+</html>
